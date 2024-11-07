@@ -1,0 +1,40 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+
+# Load and preprocess data
+path = 'dataset/creditcardfraud-csv/creditcardfraud-csv/creditcard.csv'
+df = pd.read_csv(path).drop(['Time', 'Class'], axis=1)
+x_train, x_test = train_test_split(df, test_size=0.2)
+
+# Build autoencoder
+model = models.Sequential([
+    layers.Input(shape=(x_train.shape[1],)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(20, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(x_train.shape[1], activation='linear')
+])
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train model
+model.fit(x_train, x_train, validation_data=(x_test, x_test), epochs=5, batch_size=100, shuffle=True)
+
+# Detect anomalies
+predictions = model.predict(x_test)
+mse = np.mean(np.power(x_test - predictions, 2), axis=1)
+threshold = np.percentile(mse, 95)
+num_anomalies = np.sum(mse > threshold)
+print(f"Threshold: {threshold}, Number of Anomalies: {num_anomalies}")
+
+# Plot MSE and anomalies
+plt.plot(mse, 'o', markersize=3, label='MSE')
+plt.axhline(threshold, color='r', linestyle='--', label='Anomaly Threshold')
+plt.xlabel('Sample Index')
+plt.ylabel('MSE')
+plt.legend()
+plt.show()

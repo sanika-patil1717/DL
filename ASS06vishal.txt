@@ -1,0 +1,84 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+
+path="C:/Users/patil/Downloads/LP-IV-datasets/LP-IV-datasets/Object Detection(Ass6)/caltech-101-img"
+model_path="C:/Users/patil/Downloads/LP-IV-datasets/LP-IV-datasets/Object Detection(Ass6)/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5"
+
+
+img_gen=ImageDataGenerator(
+    brightness_range=(0.5,1),
+    channel_shift_range=0.2,
+    horizontal_flip=True,
+    vertical_flip=True,
+    rescale=1./255,
+    validation_split=0.3
+)
+img_gen_train=img_gen.flow_from_directory(
+    directory=path,
+    shuffle=True,
+    target_size=(224,224),
+    batch_size=32,
+    subset="training"
+)
+img_gen_test=img_gen.flow_from_directory(
+    directory=path,
+    shuffle=True,
+    target_size=(224,224),
+    batch_size=32,
+    subset="validation"
+)
+
+# Fetch a batch of images and labels from the generator
+imgs, labels = next(iter(img_gen_train))
+for img, labels in zip(imgs, labels):
+    plt.imshow(img)
+    plt.show()
+
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.layers import Dense,MaxPool2D,Flatten
+from tensorflow.keras.models import Sequential
+
+
+#a. Loading pre_trained model
+vgg_model=VGG16(input_shape=(224,224,3),
+                include_top=False,
+                weights=model_path)
+
+
+#b. Freeze parameters
+vgg_model.trainable=False
+
+
+#c. Add custom classifier with several layers of trainable parameteres to model
+model=Sequential([
+    vgg_model,
+    MaxPool2D(),
+    Flatten(),
+    Dense(102,activation='softmax')
+])
+model.summary()
+
+
+# d. Train classifier layers on training data available for task
+import tensorflow as tf
+model.compile(optimizer='adam',
+              metrics=['accuracy'],
+              loss=tf.keras.losses.CategoricalCrossentropy)
+model.fit(img_gen_train,
+          validation_data=img_gen_test,
+          steps_per_epoch=2,
+          epochs=1)
+
+# e. Fine-tune hyper parameters and unfreeze more layers as needed
+vgg_model.trainable=true
+model.compile(optimizer='adam',
+              metrics=['accuracy'],
+              loss=tf.keras.losses.CategoricalCrossentropy)
+model.fit(img_gen_train,
+          validation_data=img_gen_test,
+          steps_per_epoch=2,
+          epochs=4)
